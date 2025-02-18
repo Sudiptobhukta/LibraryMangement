@@ -155,6 +155,7 @@ export default function AdminDash() {
       >
         <h3 className="text-2xl font-semibold text-gray-700 mb-4">Borrowed Books</h3>
         <div className="space-y-4">
+        {console.log(borrowedBooks)}
           {borrowedBooks.map((book) => (
             <div key={book.id} className="border p-4 rounded">
               <h4 className="text-lg font-semibold">{book.title}</h4>

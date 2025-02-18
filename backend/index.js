@@ -94,6 +94,7 @@ app.post('/books', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
 
   const { title, author, type, serial_no } = req.body;
+  console.log(title, author, type, serial_no)
   try {
     const result = await db.query(
       'INSERT INTO books (title, author, type, serial_no) VALUES ($1, $2, $3, $4) RETURNING *',
@@ -109,12 +110,14 @@ app.post('/books', auth, async (req, res) => {
 
 app.post('/borrow', auth, async (req, res) => {
   const { book_id } = req.body;
-  console.log(book_id)
+  console.log("Book ID received:", book_id);
 
   try {
+    // Fetch book details and check if available
     const bookResult = await db.query('SELECT * FROM books WHERE id = $1 AND available = true', [book_id]);
     const book = bookResult.rows[0];
-    console.log(book)
+
+    console.log("Fetched Book Data:", book);
 
     if (!book) return res.status(400).json({ message: 'Book not available' });
 
@@ -122,18 +125,22 @@ app.post('/borrow', auth, async (req, res) => {
     const returnDate = new Date();
     returnDate.setDate(issueDate.getDate() + 15); // 15 days return period
 
+    // Insert into borrowed_books table
     await db.query(
-      'INSERT INTO borrowed_books (user_id, book_id, issue_date, return_date) VALUES ($1, $2, $3, $4)',
-      [req.user.userId, book_id, issueDate, returnDate]
+      'INSERT INTO borrowed_books (user_id, book_id, issue_date, return_date, author, title) VALUES ($1, $2, $3, $4, $5, $6)',
+      [req.user.userId, book_id, issueDate, returnDate, book.author, book.title] // Corrected author field
     );
 
+    // Mark the book as unavailable in books table
     await db.query('UPDATE books SET available = false WHERE id = $1', [book_id]);
 
     res.json({ message: 'Book borrowed successfully!' });
   } catch (error) {
+    console.error("Error borrowing book:", error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 //memeberships
@@ -196,19 +203,18 @@ app.get('/borrowed-books', auth, async (req, res) => {
 app.get('/borrowedbook', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT b.id, b.title, b.author, bb.issue_date, bb.return_date FROM borrowed_books bb ' +
-      'JOIN books b ON bb.book_id = b.id ' +
-      'WHERE bb.user_id = $1', 
-      [req.user.userId]
+      "SELECT b.id, b.title, b.author, bb.issue_date, bb.return_date FROM borrowed_books bb JOIN books b ON bb.book_id = b.id"
     );
+    console.log(result)
     res.json(result.rows);
   } catch (error) {
+    console.error("Error fetching borrowed books:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 
-// Return a borrowed book (POST /return-book)
+
 app.post('/return-book', auth, async (req, res) => {
   const { book_id } = req.body;
 
@@ -217,20 +223,43 @@ app.post('/return-book', auth, async (req, res) => {
   }
 
   try {
+    console.log("Returning Book ID:", book_id);
+
+    // Check if the book exists in borrowed_books before updating
+    const borrowedBookResult = await db.query('SELECT * FROM borrowed_books WHERE id = $1 AND user_id = $2', [book_id, req.user.userId]);
+
+    if (borrowedBookResult.rows.length === 0) {
+      return res.status(400).json({ message: 'Book not found in borrowed books' });
+    }
+
+    console.log("Borrowed Book Found:", borrowedBookResult.rows[0]);
+
+    // Ensure book exists in books table
+    // const bookCheck = await db.query('SELECT * FROM books WHERE id = $1', [book_id]);
+    // if (bookCheck.rows.length === 0) {
+    //   return res.status(400).json({ message: 'Book does not exist in books table' });
+    // }
+
+    console.log("Updating book availability...");
+
     // Mark the book as available
-    await db.query('UPDATE books SET available = true WHERE id = $1', [book_id]);
+    const updateResult = await db.query('UPDATE books SET available = true WHERE id = $1 RETURNING *', [book_id]);
     
+    if (updateResult.rowCount === 0) {
+      return res.status(500).json({ message: 'Failed to update book availability' });
+    }
+
+    console.log("Book updated:", updateResult.rows[0]);
+
     // Remove the book from borrowed_books table
-    
-    await db.query('DELETE FROM borrowed_books WHERE book_id = $1 AND user_id = $2', [book_id, req.user.userId]);
-    
-    res.json({ message: 'Book returned successfully!' });
+    await db.query('DELETE FROM borrowed_books WHERE id = $1 AND user_id = $2', [book_id, req.user.userId]);
+
+    res.json({ message: `Book "${borrowedBookResult.rows[0].title}" returned successfully!` });
   } catch (error) {
+    console.error("Error returning book:", error);
     res.status(500).json({ error: error.message });
   }
 });
-
-
 
 
 

@@ -62,25 +62,28 @@ export default function UserDashboard() {
       .catch((error) => alert("Error borrowing book: " + error.response?.data?.message));
   };
 
-  const returnBook = (bookId) => {
-    axios
-      .post("http://localhost:5000/return-book", { book_id: bookId }, { headers: { Authorization: token } })
-      .then(() => {
-        alert("Book returned successfully!");
-        // Remove the returned book from borrowedBooks list
-        setBorrowedBooks((prev) => prev.filter((book) => book.id !== bookId));
-        
-        // Fetch the updated available books
-        axios
-          .get("http://localhost:5000/book", { headers: { Authorization: token } })
-          .then((res) => setBooks(res.data)); // Update available books list
-      })
-      .catch((error) => alert("Error returning book: " + error.response?.data?.message));
-  };
+ const returnBook = (bookId) => {
+  axios
+    .post("http://localhost:5000/return-book", { book_id: bookId }, { headers: { Authorization: token } })
+    .then(() => {
+      alert("Book returned successfully!");
+      
+      // Remove the returned book from borrowedBooks list
+      setBorrowedBooks((prev) => prev.filter((book) => book.id !== bookId));
+      
+      // Fetch updated available books so the book reappears in the list
+      axios
+        .get("http://localhost:5000/book", { headers: { Authorization: token } })
+        .then((res) => setBooks(res.data)) // Update available books list
+        .catch((error) => console.error("Error fetching books after return:", error));
+    })
+    .catch((error) => alert("Error returning book: " + error.response?.data?.message));
+};
+
 
   const logout = () => {
     localStorage.removeItem("token");
-    navigate("/"); // Redirect to login page
+    navigate("/"); 
   };
 
   return (
@@ -122,7 +125,7 @@ export default function UserDashboard() {
           </div>
         </motion.div>
 
-        {/* Borrowed Books Section */}
+        
         <motion.div
           className="bg-white p-6 rounded-lg shadow-lg"
           initial={{ opacity: 0 }}
