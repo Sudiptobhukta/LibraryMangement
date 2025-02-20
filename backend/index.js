@@ -118,7 +118,7 @@ app.post('/borrow', auth, async (req, res) => {
     const book = bookResult.rows[0];
 
     console.log("Fetched Book Data:", book);
-
+    
     if (!book) return res.status(400).json({ message: 'Book not available' });
 
     const issueDate = new Date();
@@ -127,8 +127,8 @@ app.post('/borrow', auth, async (req, res) => {
 
     // Insert into borrowed_books table
     await db.query(
-      'INSERT INTO borrowed_books (user_id, book_id, issue_date, return_date, author, title) VALUES ($1, $2, $3, $4, $5, $6)',
-      [req.user.userId, book_id, issueDate, returnDate, book.author, book.title] // Corrected author field
+      'INSERT INTO borrowed_books (user_id, book_id, issue_date, return_date, author, title,serial_no) VALUES ($1, $2, $3, $4, $5, $6,$7)',
+      [req.user.userId, book_id, issueDate, returnDate, book.author, book.title,book.seri] // Corrected author field
     );
 
     // Mark the book as unavailable in books table
@@ -143,35 +143,70 @@ app.post('/borrow', auth, async (req, res) => {
 
 
 
-//memeberships
+app.get("/membership", auth, async (req, res) => {
+  try {
+    const membership = await db.query(
+      "SELECT * FROM memberships WHERE user_id = $1 ORDER BY end_date DESC LIMIT 1",
+      [req.user.userId]
+    );
 
-app.get("/membership",auth,async(req,res)=>{
-    try {
-        const memebership = await db.oneOrNone("Select * from membership where user_id =$1",
-        [req.user.userId]);
-
-        if (memebership){
-            return res.json({message:"no active membership", acitve: false});
-        }
-        res.json({...memebership,active :true});
-    } catch (error) {
-        res.status(500).json({error:error.message});
+    if (!membership.rows.length) {
+      return res.json({ message: "No active membership", active: false });
     }
+
+    res.json({ ...membership.rows[0], active: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/membership', auth, async (req, res) => {
-  const { membership_type } = req.body;
-  let months = membership_type === '6 months' ? 6 : membership_type === '1 year' ? 12 : 24;
-  const startDate = new Date();
-  const endDate = new Date();
-  endDate.setMonth(startDate.getMonth() + months);
+// Add or extend membership
+app.post("/membership", auth, async (req, res) => {
+  const { membership_type, action } = req.body;
+  if (!["6 months", "1 year", "2 years"].includes(membership_type)) {
+    return res.status(400).json({ message: "Invalid membership type" });
+  }
+
+  let months = membership_type === "6 months" ? 6 : membership_type === "1 year" ? 12 : 24;
+  const today = new Date();
 
   try {
-    const result = await db.query(
-      'INSERT INTO memberships (user_id, membership_type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.userId, membership_type, startDate, endDate]
+    const existingMembership = await db.query(
+      "SELECT * FROM memberships WHERE user_id = $1 ORDER BY end_date DESC LIMIT 1",
+      [req.user.userId]
     );
-    res.json(result.rows[0]);
+
+    if (existingMembership.rows.length && action === "extend") {
+      // Extend membership
+      let newEndDate = new Date(existingMembership.rows[0].end_date);
+      newEndDate.setMonth(newEndDate.getMonth() + months);
+
+      await db.query(
+        "UPDATE memberships SET end_date = $1 WHERE id = $2 RETURNING *",
+        [newEndDate, existingMembership.rows[0].id]
+      );
+      return res.json({ message: "Membership extended successfully!" });
+    } else {
+      // New membership
+      let endDate = new Date();
+      endDate.setMonth(today.getMonth() + months);
+
+      const result = await db.query(
+        "INSERT INTO memberships (user_id, membership_type, start_date, end_date) VALUES ($1, $2, $3, $4) RETURNING *",
+        [req.user.userId, membership_type, today, endDate]
+      );
+      return res.json(result.rows[0]);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancel membership
+app.post("/membership/cancel", auth, async (req, res) => {
+  try {
+    await db.query("DELETE FROM memberships WHERE user_id = $1", [req.user.userId]);
+    res.json({ message: "Membership canceled successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -181,13 +216,39 @@ app.post('/membership', auth, async (req, res) => {
 
 app.get('/fines', auth, async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM fines WHERE user_id = $1', [req.user.userId]);
+    const result = await db.query(`
+      SELECT f.id, f.book_id, b.title, b.author, f.fine_amount, f.issue_date, f.return_date, f.fine_paid
+      FROM fines f
+      JOIN books b ON f.book_id = b.id
+      WHERE f.user_id = $1`, 
+      [req.user.userId]
+    );
+
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+
+app.post('/fines/pay', auth, async (req, res) => {
+  const { fine_id, fine_paid } = req.body;
+
+  if (!fine_id) {
+    return res.status(400).json({ message: 'Fine ID is required' });
+  }
+
+  try {
+    await db.query(
+      'UPDATE fines SET fine_paid = $1 WHERE id = $2 AND user_id = $3',
+      [fine_paid, fine_id, req.user.userId]
+    );
+
+    res.json({ message: 'Fine paid successfully!' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 //borrowed books
@@ -216,7 +277,7 @@ app.get('/borrowedbook', auth, async (req, res) => {
 
 
 app.post('/return-book', auth, async (req, res) => {
-  const { book_id } = req.body;
+  const { book_id, return_date } = req.body;
 
   if (!book_id) {
     return res.status(400).json({ message: 'Book ID is required' });
@@ -225,41 +286,67 @@ app.post('/return-book', auth, async (req, res) => {
   try {
     console.log("Returning Book ID:", book_id);
 
-    // Check if the book exists in borrowed_books before updating
-    const borrowedBookResult = await db.query('SELECT * FROM borrowed_books WHERE id = $1 AND user_id = $2', [book_id, req.user.userId]);
+    // Get correct book_id from borrowed_books table
+    const borrowedBookResult = await db.query(
+      'SELECT book_id FROM borrowed_books WHERE id = $1 AND user_id = $2', 
+      [book_id, req.user.userId]
+    );
 
     if (borrowedBookResult.rows.length === 0) {
       return res.status(400).json({ message: 'Book not found in borrowed books' });
     }
 
-    console.log("Borrowed Book Found:", borrowedBookResult.rows[0]);
-
-    // Ensure book exists in books table
-    // const bookCheck = await db.query('SELECT * FROM books WHERE id = $1', [book_id]);
-    // if (bookCheck.rows.length === 0) {
-    //   return res.status(400).json({ message: 'Book does not exist in books table' });
-    // }
-
-    console.log("Updating book availability...");
+    const correctBookId = borrowedBookResult.rows[0].book_id;
 
     // Mark the book as available
-    const updateResult = await db.query('UPDATE books SET available = true WHERE id = $1 RETURNING *', [book_id]);
-    
-    if (updateResult.rowCount === 0) {
-      return res.status(500).json({ message: 'Failed to update book availability' });
-    }
+    await db.query('UPDATE books SET available = true WHERE id = $1', [correctBookId]);
 
-    console.log("Book updated:", updateResult.rows[0]);
+    // Remove book from borrowed_books table
+    await db.query('DELETE FROM borrowed_books WHERE book_id = $1 AND user_id = $2', 
+      [correctBookId, req.user.userId]
+    );
 
-    // Remove the book from borrowed_books table
-    await db.query('DELETE FROM borrowed_books WHERE id = $1 AND user_id = $2', [book_id, req.user.userId]);
+    // 🔹 **Call fine calculation function after return**
+    await db.query('SELECT * FROM fines WHERE user_id = $1', [req.user.userId]);
 
-    res.json({ message: `Book "${borrowedBookResult.rows[0].title}" returned successfully!` });
+    res.json({ message: `Book returned successfully!` });
   } catch (error) {
     console.error("Error returning book:", error);
     res.status(500).json({ error: error.message });
   }
 });
+
+
+app.put("/books/:id", auth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Access denied" });
+  }
+
+  const { id } = req.params;
+  console.log(req.params)
+  const { title, author, type, serial_no } = req.body;
+
+  if (!title || !author || !serial_no) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  try {
+    const result = await db.query(
+      "UPDATE books SET title = $1, author = $2, type = $3, serial_no = $4 WHERE id = $5 RETURNING *",
+      [title, author, type, serial_no, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    res.json({ message: "Book updated successfully!", book: result.rows[0] });
+  } catch (error) {
+    console.error("Error updating book:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 
 

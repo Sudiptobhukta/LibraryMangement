@@ -7,6 +7,7 @@ import AdminDash from "./pages/AdminDash";
 import Register from "./pages/Register"; 
 import AddBook from "./pages/AddBook";
 import UserDash from "./pages/UserDash";
+import UpdateBook from "./pages/UpdateBook";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDash />} />
         <Route path="/add-book" element={<AddBook />} />
         <Route path="/dashboard" element={<UserDash />} />
+        <Route path="/update-book/:id" element={<UpdateBook />} /> 
       </Routes>
     </Router>
   );
