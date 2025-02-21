@@ -105,15 +105,15 @@ const returnBook = (bookId, returnDate) => {
     .then(() => {
       alert("Book returned successfully!");
 
-      // ✅ Remove returned book from borrowedBooks state immediately
+      
       setBorrowedBooks((prev) => prev.filter((book) => book.book_id !== bookToReturn.book_id));
 
-      // ✅ Fetch updated available books so returned book reappears
+      
       axios.get("http://localhost:5000/book", { headers: { Authorization: token } })
         .then((res) => setBooks(res.data))
         .catch((error) => console.error("Error fetching books after return:", error));
 
-      // ✅ Redirect to Pay Fine Page after return
+      
       navigate("/fines");
     })
     .catch((error) => alert("Error returning book: " + error.response?.data?.message));

@@ -77,7 +77,6 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// books get and post
 
 // Backend: GET /books
 app.get('/book', async (req, res) => {
@@ -113,7 +112,6 @@ app.post('/borrow', auth, async (req, res) => {
   console.log("Book ID received:", book_id);
 
   try {
-    // Fetch book details and check if available
     const bookResult = await db.query('SELECT * FROM books WHERE id = $1 AND available = true', [book_id]);
     const book = bookResult.rows[0];
 
@@ -125,13 +123,12 @@ app.post('/borrow', auth, async (req, res) => {
     const returnDate = new Date();
     returnDate.setDate(issueDate.getDate() + 15); // 15 days return period
 
-    // Insert into borrowed_books table
     await db.query(
       'INSERT INTO borrowed_books (user_id, book_id, issue_date, return_date, author, title,serial_no) VALUES ($1, $2, $3, $4, $5, $6,$7)',
       [req.user.userId, book_id, issueDate, returnDate, book.author, book.title,book.seri] // Corrected author field
     );
 
-    // Mark the book as unavailable in books table
+  
     await db.query('UPDATE books SET available = false WHERE id = $1', [book_id]);
 
     res.json({ message: 'Book borrowed successfully!' });
@@ -140,7 +137,6 @@ app.post('/borrow', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 
 app.get("/membership", auth, async (req, res) => {
@@ -213,7 +209,6 @@ app.post("/membership/cancel", auth, async (req, res) => {
 });
 
 //fines
-
 app.get('/fines', auth, async (req, res) => {
   try {
     const result = await db.query(`
@@ -229,7 +224,6 @@ app.get('/fines', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 app.post('/fines/pay', auth, async (req, res) => {
   const { fine_id, fine_paid } = req.body;
@@ -275,7 +269,6 @@ app.get('/borrowedbook', auth, async (req, res) => {
 });
 
 
-
 app.post('/return-book', auth, async (req, res) => {
   const { book_id, return_date } = req.body;
 
@@ -288,7 +281,7 @@ app.post('/return-book', auth, async (req, res) => {
 
     // Get correct book_id from borrowed_books table
     const borrowedBookResult = await db.query(
-      'SELECT book_id FROM borrowed_books WHERE id = $1 AND user_id = $2', 
+      'SELECT book_id FROM borrowed_books WHERE book_id = $1 AND user_id = $2', 
       [book_id, req.user.userId]
     );
 
@@ -346,8 +339,6 @@ app.put("/books/:id", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-
 
 
 app.listen(port, ()=>{

@@ -45,7 +45,7 @@ export default function UpdateBook() {
     }
   }, [bookId, token, navigate]);
 
-  // ✅ Handle Book Update
+  
   const handleUpdate = (e) => {
     e.preventDefault();
 

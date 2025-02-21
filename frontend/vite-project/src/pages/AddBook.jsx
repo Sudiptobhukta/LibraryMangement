@@ -35,7 +35,7 @@ export default function AddBook() {
       setAuthor("");
       setType("book");
       setSerialNo("");
-      setErrors({}); // Clear errors after successful submission
+      setErrors({}); 
       window.location.reload();
     } catch (error) {
       alert(error.response?.data?.message || "Error adding book");
