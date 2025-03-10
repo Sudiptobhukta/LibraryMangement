@@ -49,7 +49,6 @@ export default function AdminDash() {
         Admin Dashboard
       </motion.h2>
 
-      {/* Add New Book Button */}
       {userRole === "admin" && (
         <div className="text-center mb-6">
           <Link
@@ -61,13 +60,7 @@ export default function AdminDash() {
         </div>
       )}
 
-      {/* Available Books Section */}
-      <motion.div
-        className="bg-white p-6 rounded-lg shadow-lg mb-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div className="bg-white p-6 rounded-lg shadow-lg mb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
         <h3 className="text-2xl font-semibold text-gray-700 mb-4">Available Books</h3>
         <div className="space-y-4">
           {availableBooks.map((book) => (
@@ -78,10 +71,7 @@ export default function AdminDash() {
                 <p className="text-gray-600">Serial No: {book.serial_no}</p>
               </div>
               {userRole === "admin" && (
-                <button
-                  onClick={() => navigate(`/update-book/${book.id}`)}
-                  className="py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition duration-300"
-                >
+                <button onClick={() => navigate(`/update-book/${book.id}`)} className="py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition duration-300">
                   Update
                 </button>
               )}
@@ -90,13 +80,7 @@ export default function AdminDash() {
         </div>
       </motion.div>
 
-      {/* Borrowed Books Section */}
-      <motion.div
-        className="bg-white p-6 rounded-lg shadow-lg mb-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div className="bg-white p-6 rounded-lg shadow-lg mb-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
         <h3 className="text-2xl font-semibold text-gray-700 mb-4">Borrowed Books</h3>
         <div className="space-y-4">
           {borrowedBooks.length === 0 ? (
@@ -114,13 +98,7 @@ export default function AdminDash() {
         </div>
       </motion.div>
 
-      {/* User Fines Section */}
-      <motion.div
-        className="bg-white p-6 rounded-lg shadow-lg"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <motion.div className="bg-white p-6 rounded-lg shadow-lg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
         <h3 className="text-2xl font-semibold text-gray-700 mb-4">User Fines</h3>
         <div className="space-y-4">
           {fines.length === 0 ? (
@@ -137,12 +115,8 @@ export default function AdminDash() {
         </div>
       </motion.div>
 
-      {/* Logout Button */}
       <div className="mt-8 text-center">
-        <button
-          onClick={logout}
-          className="py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition duration-300"
-        >
+        <button onClick={logout} className="py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition duration-300">
           Logout
         </button>
       </div>

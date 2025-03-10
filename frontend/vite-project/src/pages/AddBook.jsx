@@ -16,14 +16,12 @@ export default function AddBook() {
     if (!author.trim()) newErrors.author = "Author name is required.";
     if (!serialNo.trim()) newErrors.serialNo = "Serial number is required.";
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0; // Returns true if no errors
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) return; // Prevent submission if validation fails
-
+    if (!validateForm()) return;
     try {
       await axios.post(
         "http://localhost:5000/books",
@@ -35,7 +33,7 @@ export default function AddBook() {
       setAuthor("");
       setType("book");
       setSerialNo("");
-      setErrors({}); 
+      setErrors({});
       window.location.reload();
     } catch (error) {
       alert(error.response?.data?.message || "Error adding book");

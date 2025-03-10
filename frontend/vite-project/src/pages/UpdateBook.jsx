@@ -9,13 +9,15 @@ export default function UpdateBook() {
   const [userRole, setUserRole] = useState(null);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+  const params =  useParams()
+  console.log(params.id)
 
   useEffect(() => {
     if (!bookId || !token) return;
 
    
     axios
-      .get(`http://localhost:5000/books/${bookId}`, { headers: { Authorization: token } })
+      .get(`http://localhost:5000/books/${params.id}`, { headers: { Authorization: token } })
       .then((res) => {
         if (!res.data) {
           alert("Book not found!");
@@ -43,7 +45,7 @@ export default function UpdateBook() {
       alert("Invalid token. Please log in again.");
       navigate("/");
     }
-  }, [bookId, token, navigate]);
+  }, [params.id, token, navigate]);
 
   
   const handleUpdate = (e) => {
@@ -55,7 +57,7 @@ export default function UpdateBook() {
     }
 
     axios
-      .put(`http://localhost:5000/books/${bookId}`, book, { headers: { Authorization: token } })
+      .put(`http://localhost:5000/books/${params.id}`, book, { headers: { Authorization: token } })
       .then(() => {
         alert("Book updated successfully!");
         navigate("/admin-dashboard");
